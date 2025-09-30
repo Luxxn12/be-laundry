@@ -5,8 +5,11 @@ dotenv.config();
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.coerce.number().default(4001),
-  DATABASE_URL: z.string(),
+  PORT: z.preprocess(
+    () => (process.env.VERCEL ? undefined : process.env.PORT),
+    z.coerce.number().int().positive().optional().default(4001),
+  ),
+  DATABASE_URL: z.string().min(1),
   JWT_ACCESS_SECRET: z.string(),
   JWT_REFRESH_SECRET: z.string(),
   JWT_ACCESS_EXPIRES: z.string().default('15m'),
@@ -20,14 +23,13 @@ const envSchema = z.object({
 const env = envSchema.parse(process.env);
 
 const corsOrigins = env.CORS_ORIGINS
-  ? env.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
+  ? env.CORS_ORIGINS.split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean)
   : ['*'];
 
 if (!corsOrigins.includes('*')) {
-  const sameHostOrigins = [
-    `http://localhost:${env.PORT}`,
-    `http://127.0.0.1:${env.PORT}`,
-  ];
+  const sameHostOrigins = [`http://localhost:${env.PORT}`, `http://127.0.0.1:${env.PORT}`];
 
   for (const origin of sameHostOrigins) {
     if (!corsOrigins.includes(origin)) {
